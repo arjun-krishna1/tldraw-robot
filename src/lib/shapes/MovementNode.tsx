@@ -1,7 +1,47 @@
-import { BaseBoxShapeUtil, HTMLContainer, stopEventPropagation } from '@tldraw/tldraw'
+import { BaseBoxShapeUtil, HTMLContainer, stopEventPropagation, Editor, TLShapeId } from '@tldraw/tldraw'
 import { MovementNodeShape } from '.'
 import * as React from 'react'
 import { sendMovementCommand } from '../utils/movement'
+
+function getTextPointingToShape(editor: Editor, targetShapeId: TLShapeId): string[] {
+  // Get all bindings where this shape is the target
+  const bindings = editor.getBindingsToShape(targetShapeId, 'arrow')
+  
+  // For each binding, get both the arrow and the shape it's coming from
+  return bindings.map(binding => {
+    // Get the arrow shape
+    const arrowShape = editor.getShape(binding.fromId)
+    if (!arrowShape || arrowShape.type !== 'arrow') return null
+
+    // Get the arrow's bindings to find its start point
+    const arrowBindings = editor.getBindingsFromShape(arrowShape.id, 'arrow')
+    
+    // Find the binding that represents the start of the arrow
+    const startBinding = arrowBindings.find(b => (b.props as any).terminal === 'start')
+    if (!startBinding) return null
+
+    // Get the shape at the start of the arrow
+    const startShape = editor.getShape(startBinding.toId)
+    if (!startShape) return null
+    
+    // Get the text from the source shape
+    const text = editor.getShapeUtil(startShape).getText(startShape)
+    return text
+  }).filter((text): text is string => text !== null && text !== undefined)
+}
+
+function parseMovementCommand(text: string): { direction: string; value: number } | null {
+  // // Try to match patterns like "forward 10", "left 90", etc.
+  // console.log('ARJUN LOG TEXT', text)
+  // const match = text.toLowerCase().match(/(forward|back|left|right)\s+(\d+)/i)
+  // if (match) {
+    return {
+      direction: text,
+      value: 10
+    }
+  // }
+  // return null
+}
 
 /** @public */
 export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
@@ -34,18 +74,37 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
       e.stopPropagation()
       if (shape.props.isLoading) return
 
+      // Get connected text content
+      const connectedTexts = getTextPointingToShape(this.editor!, shape.id)
+      console.log('Connected texts:', connectedTexts)
+
+      // Parse the last movement command
+      const lastCommand = connectedTexts
+        .map(text => parseMovementCommand(text))
+        .filter((cmd): cmd is { direction: string; value: number } => cmd !== null)
+        .pop()
+
+      if (!lastCommand) {
+        console.log('No valid movement command found')
+        return
+      }
+
+      console.log('Executing movement command:', lastCommand)
+
       // Update loading state
       this.editor?.updateShape<MovementNodeShape>({
         id: shape.id,
         type: 'movement',
         props: {
           ...shape.props,
+          direction: lastCommand.direction,
+          value: lastCommand.value,
           isLoading: true,
         },
       })
 
       try {
-        const response = await sendMovementCommand(shape.props.direction, shape.props.value)
+        const response = await sendMovementCommand(lastCommand.direction, lastCommand.value)
         console.log('Movement response:', response)
 
         // Update node state
@@ -69,6 +128,13 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
         })
       }
     }, [shape])
+
+    // Get current movement command from connected text
+    const connectedTexts = getTextPointingToShape(this.editor!, shape.id)
+    const currentCommand = connectedTexts
+      .map(text => parseMovementCommand(text))
+      .filter((cmd): cmd is { direction: string; value: number } => cmd !== null)
+      .pop()
 
     return (
       <HTMLContainer
@@ -114,63 +180,17 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
               {shape.props.isLoading ? 'Moving...' : 'Move'}
             </button>
           </div>
-          {isEditing ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <select
-                value={shape.props.direction}
-                onChange={(e) => {
-                  this.editor?.updateShape<MovementNodeShape>({
-                    id: shape.id,
-                    type: 'movement',
-                    props: {
-                      ...shape.props,
-                      direction: e.target.value,
-                    },
-                  })
-                }}
-                style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  padding: '4px',
-                  color: 'white',
-                  borderRadius: '4px',
-                }}
-              >
-                <option value="forward">Forward</option>
-                <option value="back">Back</option>
-                <option value="left">Left</option>
-                <option value="right">Right</option>
-              </select>
-              <input
-                type="number"
-                value={shape.props.value}
-                onChange={(e) => {
-                  this.editor?.updateShape<MovementNodeShape>({
-                    id: shape.id,
-                    type: 'movement',
-                    props: {
-                      ...shape.props,
-                      value: parseFloat(e.target.value) || 0,
-                    },
-                  })
-                }}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  padding: '4px',
-                  color: 'white',
-                  borderRadius: '4px',
-                }}
-              />
-            </div>
-          ) : (
-            <div>
-              {/* TEST Direction: {shape.props.direction} */}
-              <br />
-              {/* Value: {shape.props.value} {shape.props.direction === 'left' || shape.props.direction === 'right' ? 'degrees' : 'cm'} */}
-            </div>
-          )}
+          <div>
+            {currentCommand ? (
+              <>
+                Direction: {currentCommand.direction}
+                <br />
+                Value: {currentCommand.value} {currentCommand.direction === 'left' || currentCommand.direction === 'right' ? 'degrees' : 'cm'}
+              </>
+            ) : (
+              'Connect a text node with commands like "forward 10" or "left 90"'
+            )}
+          </div>
         </div>
       </HTMLContainer>
     )
