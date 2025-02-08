@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 import base64
 import io
+import paho.mqtt.client as mqtt
+import json
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +24,14 @@ if not elevenlabs_api_key:
 
 genai.configure(api_key=gemini_api_key)
 eleven = ElevenLabs(api_key=elevenlabs_api_key)
+
+# Initialize MQTT client
+mqtt_client = mqtt.Client()
+try:
+    mqtt_client.connect("localhost")
+    mqtt_client.loop_start()
+except Exception as e:
+    print(f"Error connecting to MQTT broker: {e}")
 
 app = FastAPI()
 
@@ -43,6 +53,10 @@ class SpeechRequest(BaseModel):
 class MovementRequest(BaseModel):
     direction: str
     value: float
+
+# Constants for movement
+LINEAR_SPEED = 0.2  # m/s
+ANGULAR_SPEED = 1.2  # rad/s
 
 @app.post("/api/generate")
 async def generate_response(request: PromptRequest):
@@ -91,10 +105,33 @@ async def text_to_speech(request: SpeechRequest):
 async def handle_movement(request: MovementRequest):
     try:
         print(f"Movement command received - Direction: {request.direction}, Value: {request.value}")
-        return {"status": "success", "message": f"Moving {request.direction} by {request.value}"}
+        
+        # Map directions to linear and angular velocities
+        command_map = {
+            "forward": {"linear_velocity": LINEAR_SPEED, "angular_velocity": 0},
+            "back": {"linear_velocity": -LINEAR_SPEED, "angular_velocity": 0},
+            "left": {"linear_velocity": 0, "angular_velocity": ANGULAR_SPEED},
+            "right": {"linear_velocity": 0, "angular_velocity": -ANGULAR_SPEED},
+        }
+
+        if request.direction in command_map:
+            # Send command via MQTT
+            command = command_map[request.direction]
+            mqtt_client.publish("robot/drive", json.dumps(command))
+            print(f"Published MQTT command: {command}")
+            return {"status": "success", "message": f"Moving {request.direction}"}
+        else:
+            raise ValueError(f"Invalid direction: {request.direction}")
+
     except Exception as e:
         print(f"Error in handle_movement: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    # Stop MQTT client
+    mqtt_client.loop_stop()
+    mqtt_client.disconnect()
 
 if __name__ == "__main__":
     import uvicorn
