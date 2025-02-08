@@ -127,6 +127,24 @@ async def handle_movement(request: MovementRequest):
         print(f"Error in handle_movement: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/stop")
+async def handle_stop():
+    try:
+        # Create stop command (zero velocities)
+        stop_command = {
+            "linear_velocity": 0,
+            "angular_velocity": 0
+        }
+        
+        # Send stop command via MQTT
+        mqtt_client.publish("robot/drive", json.dumps(stop_command))
+        print("Published MQTT stop command")
+        return {"status": "success", "message": "Robot stopped"}
+
+    except Exception as e:
+        print(f"Error in handle_stop: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.on_event("shutdown")
 async def shutdown_event():
     # Stop MQTT client
