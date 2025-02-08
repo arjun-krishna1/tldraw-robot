@@ -1,7 +1,47 @@
-import { BaseBoxShapeUtil, HTMLContainer, stopEventPropagation, useValue, createShapeId, RecordProps, T } from '@tldraw/tldraw'
+import { BaseBoxShapeUtil, HTMLContainer, stopEventPropagation, useValue, createShapeId, RecordProps, T, TLShape, TLArrowShape, TLTextShape, TLShapeId, TLBinding, Editor } from '@tldraw/tldraw'
 import { LLMNodeShape } from '.'
 import * as React from 'react'
 import { generateWithGemini } from '../utils/gemini'
+
+function getArrowBindings(editor: Editor, arrow: TLArrowShape) {
+  return {
+    start: editor.getBinding(arrow.id),
+    end: editor.getBinding(arrow.id)
+  }
+}
+
+function getTextPointingToShape(editor: Editor, targetShapeId: TLShapeId) {
+  // Get all bindings where this shape is the target
+  const bindings = editor.getBindingsToShape(targetShapeId, 'arrow')
+  console.log('Found bindings:', bindings)
+  
+  // For each binding, get both the arrow and the shape it's coming from
+  return bindings.map(binding => {
+    console.log('Analyzing binding:', binding)
+    // Get the arrow shape
+    const arrowShape = editor.getShape(binding.fromId)
+    console.log("ARJUN LOG ARROW SHAPE", arrowShape)
+    if (!arrowShape || arrowShape.type !== 'arrow') return null
+
+    // Get the arrow's bindings to find its start point
+    const arrowBindings = editor.getBindingsFromShape(arrowShape.id, 'arrow')
+    
+    // Find the binding that represents the start of the arrow
+    const startBinding = arrowBindings.find(b => (b.props as any).terminal === 'start')
+    console.log("ARJUN LOG START BINDING", startBinding)
+    if (!startBinding) return null
+
+    // Get the shape at the start of the arrow
+    const startShape = editor.getShape(startBinding.toId)
+    console.log("ARJUN LOG START SHAPE", startShape)
+    if (!startShape) return null
+    
+    // Get the text from the source shape
+    const text = editor.getShapeUtil(startShape).getText(startShape)
+    console.log('Found text:', text)
+    return text
+  }).filter(text => text !== null && text !== undefined)
+}
 
 export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
   static type = 'llm'
@@ -37,8 +77,29 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
 
     const isEditing = this.editor.getEditingShapeId() === shape.id
 
+    const getConnectedTextContent = () => {
+      console.log('\n=== Starting Connection Detection ===')
+      console.log('Think Node:', {
+        id: shape.id,
+        type: shape.type,
+        x: shape.x,
+        y: shape.y
+      })
+      
+      // Get text from connected shapes
+      const connectedTexts = getTextPointingToShape(this.editor!, shape.id)
+      
+      console.log('\nFinal Results:')
+      console.log('Number of connected texts:', connectedTexts.length)
+      console.log('Connected texts:', connectedTexts)
+      console.log('=== End Connection Detection ===\n')
+      
+      return connectedTexts
+    }
+
     const handleThink = React.useCallback(async (e: React.MouseEvent) => {
-      console.log('Think button clicked')
+      console.log('\n=== Think Button Clicked ===')
+      console.log('Shape ID:', shape.id)
       console.log('Current instruction:', shape.props.instruction)
       
       e.stopPropagation()
@@ -46,6 +107,21 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
         console.log('Think aborted - no instruction or already loading')
         return
       }
+
+      // Get connected text content
+      const connectedTexts = getConnectedTextContent()
+      console.log('\nProcessing connected texts:')
+      console.log('Number of texts found:', connectedTexts.length)
+      console.log('Texts:', connectedTexts)
+
+      // Build the complete prompt
+      const completePrompt = [
+        shape.props.instruction,
+        ...connectedTexts
+      ].join('\n\nContext:\n')
+
+      console.log('\nFinal Prompt:')
+      console.log(completePrompt)
 
       // Update loading state
       console.log('Setting loading state...')
@@ -60,7 +136,7 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
 
       try {
         console.log('Calling Gemini API...')
-        const response = await generateWithGemini(shape.props.instruction)
+        const response = await generateWithGemini(completePrompt)
         console.log('Gemini response:', response)
         
         // Create or update result text shape
@@ -141,6 +217,7 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
               padding: '4px 8px',
               color: 'white',
               cursor: shape.props.isLoading ? 'not-allowed' : 'pointer',
+              pointerEvents: 'all',
             }}
           >
             {shape.props.isLoading ? 'Thinking...' : 'Think'}
