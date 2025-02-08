@@ -52,6 +52,14 @@ export interface LLMNodeShape extends TLBaseShape<'llm', {
   isLoading: boolean
 }> {}
 
+// Start node
+export interface StartNodeShape extends TLBaseShape<'start', {
+  title: string
+  w: number
+  h: number
+  isLoading: boolean
+}> {}
+
 // Status node
 export interface StatusNodeShape extends TLBaseShape<'status', {
   title: string
