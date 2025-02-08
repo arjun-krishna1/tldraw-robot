@@ -30,6 +30,7 @@ export interface SpeechNodeShape extends TLBaseShape<'speech', {
   w: number
   h: number
   text: string
+  isLoading: boolean
 }> {}
 
 // Listen node
