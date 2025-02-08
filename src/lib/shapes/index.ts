@@ -60,6 +60,14 @@ export interface StartNodeShape extends TLBaseShape<'start', {
   isLoading: boolean
 }> {}
 
+// Decide node
+export interface DecideNodeShape extends TLBaseShape<'decide', {
+  title: string
+  w: number
+  h: number
+  isLoading: boolean
+}> {}
+
 // Status node
 export interface StatusNodeShape extends TLBaseShape<'status', {
   title: string

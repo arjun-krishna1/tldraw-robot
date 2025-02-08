@@ -49,6 +49,12 @@ export function Toolbar({ editor }: ToolbarProps) {
         Think
       </button>
       <button
+        className="px-4 py-2 bg-fuchsia-500 text-white rounded hover:bg-fuchsia-600"
+        onClick={() => addNode('decide')}
+      >
+        Decide
+      </button>
+      <button
         className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
         onClick={() => addNode('status')}
       >

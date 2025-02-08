@@ -4,6 +4,7 @@ import { AudioInputNodeUtil } from './AudioInputNode'
 import { LLMNodeUtil } from './LLMNode'
 import { StatusNodeUtil } from './StatusNode'
 import { StartNodeUtil } from './StartNode'
+import { DecideNodeUtil } from './DecideNode'
 
 export const customShapeUtils = [
   MovementNodeUtil,
@@ -12,4 +13,5 @@ export const customShapeUtils = [
   LLMNodeUtil,
   StatusNodeUtil,
   StartNodeUtil,
+  DecideNodeUtil,
 ] 
