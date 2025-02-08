@@ -9,6 +9,10 @@ import base64
 import io
 import paho.mqtt.client as mqtt
 import json
+import sounddevice as sd
+import soundfile as sf
+from io import BytesIO
+from scipy import signal
 
 # Load environment variables
 load_dotenv()
@@ -82,23 +86,63 @@ async def generate_response(request: PromptRequest):
 @app.post("/api/speak")
 async def text_to_speech(request: SpeechRequest):
     try:
+        # Check for special phrases that use pre-recorded audio
+        text_normalized = request.text.lower().strip('-.,!?')
+        if text_normalized in ["wow", "uhhhhhhhhh lemme think about that"]:
+            filename = "wow.wav" if text_normalized == "wow" else "uhh.wav"
+            try:
+                data, sample_rate = sf.read(filename, dtype='float32')
+                device_name = "UACDemoV1.0"
+                device_info = sd.query_devices(device_name, 'output')
+                device_id = device_info['index']
+                device_sample_rate = device_info['default_samplerate']
+
+                # Resample if needed
+                if sample_rate != device_sample_rate:
+                    number_of_samples = int(round(len(data) * float(device_sample_rate) / sample_rate))
+                    data = signal.resample(data, number_of_samples)
+                    sample_rate = device_sample_rate
+
+                sd.play(data, samplerate=sample_rate, device=device_id)
+                sd.wait()
+                return {"status": "success"}
+            except Exception as e:
+                print(f"Error playing pre-recorded audio: {e}")
+                # Continue to generate new audio if pre-recorded playback fails
+        
         # Generate audio using ElevenLabs
-        audio_stream = eleven.text_to_speech.convert_as_stream(
+        audio = eleven.generate(
             text=request.text,
-            voice_id="JBFqnCBsd6RMkjVDRZzb",  # Josh voice
-            model_id="eleven_multilingual_v2",
+            voice="Josh",  # Using Josh voice
+            model="eleven_multilingual_v2"
         )
-        
-        # Collect all audio bytes from the stream
-        audio_bytes = io.BytesIO()
-        for chunk in audio_stream:
-            if isinstance(chunk, bytes):
-                audio_bytes.write(chunk)
-        
-        # Convert audio bytes to base64 for sending over JSON
-        audio_base64 = base64.b64encode(audio_bytes.getvalue()).decode('utf-8')
-        
-        return {"audio": audio_base64}
+
+        # Set audio device
+        device_name = "UACDemoV1.0"
+        device_info = sd.query_devices(device_name, 'output')
+        device_id = device_info['index']
+        device_sample_rate = device_info['default_samplerate']
+
+        # Prepare audio data
+        audio_data = b''.join(audio)
+        data, sample_rate = sf.read(BytesIO(audio_data), dtype='float32')
+
+        # Resample if needed
+        if sample_rate != device_sample_rate:
+            number_of_samples = int(round(len(data) * float(device_sample_rate) / sample_rate))
+            data = signal.resample(data, number_of_samples)
+            sample_rate = device_sample_rate
+
+        # Play the audio
+        sd.play(data, samplerate=sample_rate, device=device_id)
+        sd.wait()
+
+        # Save to wav if text was "wow" or "uhh"
+        if text_normalized in ["wow", "uhhhhhhhhh lemme think about that"]:
+            filename = "wow.wav" if text_normalized == "wow" else "uhh.wav"
+            sf.write(filename, data, int(sample_rate))
+
+        return {"status": "success"}
     except Exception as e:
         print(f"Error in text_to_speech: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
