@@ -2,6 +2,9 @@ import { BaseBoxShapeUtil, HTMLContainer, stopEventPropagation, Editor, TLShapeI
 import { StartNodeShape } from '.'
 import * as React from 'react'
 
+// Add delay constant at the top level
+const NODE_EXECUTION_DELAY_MS = 500 // 2 second delay between nodes
+
 function getShapesPointedToByShape(editor: Editor, sourceId: TLShapeId): TLShapeId[] {
   console.log('\n=== Finding next shapes from:', sourceId, '===')
   
@@ -61,7 +64,7 @@ async function triggerNode(editor: Editor, shapeId: TLShapeId, visited = new Set
   if (element) {
     console.log('Found button, clicking it')
     element.click()
-    // Wait a bit for the action to complete
+    // Wait for the action to complete
     console.log('Waiting for action to complete...')
     await new Promise(resolve => setTimeout(resolve, 1000))
   } else {
@@ -72,6 +75,12 @@ async function triggerNode(editor: Editor, shapeId: TLShapeId, visited = new Set
   console.log('Finding next shapes in sequence')
   const nextShapes = getShapesPointedToByShape(editor, shapeId)
   console.log('Found next shapes:', nextShapes)
+  
+  // Add delay before moving to next nodes
+  if (nextShapes.length > 0) {
+    console.log(`Waiting ${NODE_EXECUTION_DELAY_MS}ms before triggering next node...`)
+    await new Promise(resolve => setTimeout(resolve, NODE_EXECUTION_DELAY_MS))
+  }
   
   // Trigger them in sequence
   for (const nextId of nextShapes) {

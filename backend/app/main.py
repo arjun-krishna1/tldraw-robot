@@ -26,7 +26,7 @@ genai.configure(api_key=gemini_api_key)
 eleven = ElevenLabs(api_key=elevenlabs_api_key)
 
 # Initialize MQTT client
-mqtt_client = mqtt.Client()
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 try:
     mqtt_client.connect("localhost")
     mqtt_client.loop_start()
@@ -57,6 +57,8 @@ class MovementRequest(BaseModel):
 # Constants for movement
 LINEAR_SPEED = 0.2  # m/s
 ANGULAR_SPEED = 1.2  # rad/s
+
+MQTT_TOPIC = "robot/drive"
 
 @app.post("/api/generate")
 async def generate_response(request: PromptRequest):
@@ -106,19 +108,13 @@ async def handle_movement(request: MovementRequest):
     try:
         print(f"Movement command received - Direction: {request.direction}, Value: {request.value}")
         
-        # Map directions to linear and angular velocities
-        command_map = {
-            "forward": {"linear_velocity": LINEAR_SPEED, "angular_velocity": 0},
-            "back": {"linear_velocity": -LINEAR_SPEED, "angular_velocity": 0},
-            "left": {"linear_velocity": 0, "angular_velocity": ANGULAR_SPEED},
-            "right": {"linear_velocity": 0, "angular_velocity": -ANGULAR_SPEED},
-        }
-
-        if request.direction in command_map:
+        # Map directions to MQTT commands
+        valid_directions = ["forward", "back", "left", "right"]
+        
+        if request.direction in valid_directions:
             # Send command via MQTT
-            command = command_map[request.direction]
-            mqtt_client.publish("robot/drive", json.dumps(command))
-            print(f"Published MQTT command: {command}")
+            mqtt_client.publish(MQTT_TOPIC, request.direction)
+            print(f"Published MQTT command: {request.direction}")
             return {"status": "success", "message": f"Moving {request.direction}"}
         else:
             raise ValueError(f"Invalid direction: {request.direction}")
@@ -130,14 +126,8 @@ async def handle_movement(request: MovementRequest):
 @app.post("/api/stop")
 async def handle_stop():
     try:
-        # Create stop command (zero velocities)
-        stop_command = {
-            "linear_velocity": 0,
-            "angular_velocity": 0
-        }
-        
         # Send stop command via MQTT
-        mqtt_client.publish("robot/drive", json.dumps(stop_command))
+        mqtt_client.publish(MQTT_TOPIC, "stop")
         print("Published MQTT stop command")
         return {"status": "success", "message": "Robot stopped"}
 
