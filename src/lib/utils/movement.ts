@@ -18,4 +18,25 @@ export async function sendMovementCommand(direction: string, value: number) {
     console.error('Error sending movement command:', error);
     throw error;
   }
+}
+
+export async function sendStopCommand() {
+  try {
+    const response = await fetch('http://localhost:8000/api/stop', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error sending stop command:', error);
+    throw error;
+  }
 } 

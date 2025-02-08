@@ -1,7 +1,7 @@
 import { BaseBoxShapeUtil, HTMLContainer, stopEventPropagation, Editor, TLShapeId } from '@tldraw/tldraw'
 import { MovementNodeShape } from '.'
 import * as React from 'react'
-import { sendMovementCommand } from '../utils/movement'
+import { sendMovementCommand, sendStopCommand } from '../utils/movement'
 
 function getTextPointingToShape(editor: Editor, targetShapeId: TLShapeId): string[] {
   // Get all bindings where this shape is the target
@@ -129,6 +129,46 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
       }
     }, [shape])
 
+    const handleStop = React.useCallback(async (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (shape.props.isLoading) return
+
+      // Update loading state
+      this.editor?.updateShape<MovementNodeShape>({
+        id: shape.id,
+        type: 'movement',
+        props: {
+          ...shape.props,
+          isLoading: true,
+        },
+      })
+
+      try {
+        const response = await sendStopCommand()
+        console.log('Stop response:', response)
+
+        // Update node state
+        this.editor?.updateShape<MovementNodeShape>({
+          id: shape.id,
+          type: 'movement',
+          props: {
+            ...shape.props,
+            isLoading: false,
+          },
+        })
+      } catch (error) {
+        console.error('Error stopping:', error)
+        this.editor?.updateShape<MovementNodeShape>({
+          id: shape.id,
+          type: 'movement',
+          props: {
+            ...shape.props,
+            isLoading: false,
+          },
+        })
+      }
+    }, [shape])
+
     // Get current movement command from connected text
     const connectedTexts = getTextPointingToShape(this.editor!, shape.id)
     const currentCommand = connectedTexts
@@ -175,9 +215,25 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
                 color: 'white',
                 cursor: shape.props.isLoading ? 'not-allowed' : 'pointer',
                 pointerEvents: 'all',
+                marginRight: '4px',
               }}
             >
               {shape.props.isLoading ? 'Moving...' : 'Move'}
+            </button>
+            <button
+              onClick={handleStop}
+              disabled={shape.props.isLoading}
+              style={{
+                backgroundColor: '#dc2626',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                color: 'white',
+                cursor: shape.props.isLoading ? 'not-allowed' : 'pointer',
+                pointerEvents: 'all',
+              }}
+            >
+              Stop
             </button>
           </div>
           <div>
