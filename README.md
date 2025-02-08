@@ -2,6 +2,22 @@
 
 A tldraw computer style interface for BracketBot programming.
 
+## Instructions
+- Connect to your bracketbots network
+- SSH to bracketbot raspberry pi
+- Run `~/quickstart/core $ python3 node_drive.py`
+- Run  `~/tldraw-robot/backend $ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
+- On your local machine run `~/tldraw-robot$ npm run dev`
+- Open the tldraw interface in your browser
+- Create a flow and run
+- If you get a connection error, rapsberry pi ip address might have changed. Check the ip address of the raspberry pi in the bracketbot network.
+- (.venv) scarlet@scarlet-bracketbot:~/quickstart $ ip addr show | grep -w inet
+    inet 127.0.0.1/8 scope host lo
+    inet 10.42.0.1/24 brd 10.42.0.255 scope global noprefixroute wlan0_ap
+    - In this case the ip address is 10.42.0.1
+
+
+
 ## Project Definition
 
 **What is the project?**
