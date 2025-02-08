@@ -1,9 +1,11 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const API_KEY = process.env.GEMINI_API_KEY
+// In Next.js, environment variables prefixed with NEXT_PUBLIC_ are available in the browser
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY
 if (!API_KEY) {
-  throw new Error('GEMINI_API_KEY environment variable is not set')
+  throw new Error('NEXT_PUBLIC_GEMINI_API_KEY environment variable is not set')
 }
+
 const genAI = new GoogleGenerativeAI(API_KEY)
 
 export async function generateWithGemini(prompt: string): Promise<string> {

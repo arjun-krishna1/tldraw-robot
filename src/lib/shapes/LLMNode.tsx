@@ -1,17 +1,29 @@
-import { BaseBoxShapeUtil } from '@tldraw/tldraw'
+import { BaseBoxShapeUtil, HTMLContainer, stopEventPropagation, useValue, createShapeId, RecordProps, T } from '@tldraw/tldraw'
 import { LLMNodeShape } from '.'
 import * as React from 'react'
 import { generateWithGemini } from '../utils/gemini'
 
 export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
   static type = 'llm'
+  static props = {
+    w: T.number,
+    h: T.number,
+    title: T.string,
+    instruction: T.string,
+    response: T.string,
+    isLoading: T.boolean,
+  }
+
+  override canEdit() {
+    return true
+  }
 
   getDefaultProps(): LLMNodeShape['props'] {
     return {
       title: 'Think',
       w: 200,
       h: 100,
-      instruction: '',
+      instruction: 'Is this an animal?',
       response: '',
       isLoading: false,
     }
@@ -23,10 +35,20 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
       height: shape.props.h,
     }
 
-    const handleThink = React.useCallback(async () => {
-      if (!shape.props.instruction || shape.props.isLoading) return
+    const isEditing = this.editor.getEditingShapeId() === shape.id
+
+    const handleThink = React.useCallback(async (e: React.MouseEvent) => {
+      console.log('Think button clicked')
+      console.log('Current instruction:', shape.props.instruction)
+      
+      e.stopPropagation()
+      if (!shape.props.instruction || shape.props.isLoading) {
+        console.log('Think aborted - no instruction or already loading')
+        return
+      }
 
       // Update loading state
+      console.log('Setting loading state...')
       this.editor?.updateShape<LLMNodeShape>({
         id: shape.id,
         type: 'llm',
@@ -37,9 +59,29 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
       })
 
       try {
+        console.log('Calling Gemini API...')
         const response = await generateWithGemini(shape.props.instruction)
+        console.log('Gemini response:', response)
         
-        // Update with response
+        // Create or update result text shape
+        const resultId = createShapeId()
+        console.log('Creating result text shape...')
+        this.editor?.createShape({
+          id: resultId,
+          type: 'text',
+          x: shape.x,
+          y: shape.y + shape.props.h + 50,
+          props: {
+            text: response,
+            color: 'black',
+            size: 'm',
+            font: 'draw',
+            scale: 1,
+          },
+        })
+
+        // Update Think node state
+        console.log('Updating Think node state...')
         this.editor?.updateShape<LLMNodeShape>({
           id: shape.id,
           type: 'llm',
@@ -61,10 +103,12 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
           },
         })
       }
-    }, [shape.props.instruction])
+    }, [shape])
     
     return (
-      <div
+      <HTMLContainer
+        id={shape.id}
+        onPointerDown={isEditing ? stopEventPropagation : undefined}
         style={{
           width: bounds.width,
           height: bounds.height,
@@ -75,9 +119,17 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
+          pointerEvents: isEditing ? 'all' : 'none',
         }}
       >
-        <div style={{ fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div 
+          style={{ 
+            fontWeight: 'bold', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+          }}
+        >
           {shape.props.title}
           <button
             onClick={handleThink}
@@ -95,14 +147,33 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
           </button>
         </div>
         <div>
-          Instruction: {shape.props.instruction || '<empty>'}
+          {isEditing ? (
+            <input
+              value={shape.props.instruction}
+              onChange={(e) => {
+                this.editor?.updateShape<LLMNodeShape>({
+                  id: shape.id,
+                  type: 'llm',
+                  props: {
+                    ...shape.props,
+                    instruction: e.target.value,
+                  },
+                })
+              }}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                padding: '4px',
+                color: 'white',
+                borderRadius: '4px',
+              }}
+            />
+          ) : (
+            <div>{shape.props.instruction || '<empty>'}</div>
+          )}
         </div>
-        {shape.props.response && (
-          <div style={{ marginTop: '4px', padding: '4px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '4px' }}>
-            Response: {shape.props.response}
-          </div>
-        )}
-      </div>
+      </HTMLContainer>
     )
   }
 
