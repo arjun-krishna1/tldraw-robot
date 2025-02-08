@@ -31,16 +31,19 @@ function getTextPointingToShape(editor: Editor, targetShapeId: TLShapeId): strin
 }
 
 function parseMovementCommand(text: string): { direction: string; value: number } | null {
-  // // Try to match patterns like "forward 10", "left 90", etc.
-  // console.log('ARJUN LOG TEXT', text)
-  // const match = text.toLowerCase().match(/(forward|back|left|right)\s+(\d+)/i)
-  // if (match) {
+  // Handle stop command
+  if (text.toLowerCase().trim() === 'stop') {
     return {
-      direction: text,
-      value: 10
+      direction: 'stop',
+      value: 0
     }
-  // }
-  // return null
+  }
+
+  // Handle movement commands
+  return {
+    direction: text,
+    value: 10
+  }
 }
 
 /** @public */
@@ -185,10 +188,12 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
               <>
                 Direction: {currentCommand.direction}
                 <br />
-                Value: {currentCommand.value} {currentCommand.direction === 'left' || currentCommand.direction === 'right' ? 'degrees' : 'cm'}
+                {currentCommand.direction !== 'stop' && (
+                  <>Value: {currentCommand.value} {currentCommand.direction === 'left' || currentCommand.direction === 'right' ? 'degrees' : 'cm'}</>
+                )}
               </>
             ) : (
-              'Connect a text node with commands like "forward 10" or "left 90"'
+              'Connect a text node with commands like "forward 10", "left 90", or "stop"'
             )}
           </div>
         </div>

@@ -1,6 +1,8 @@
+import { API_BASE_URL } from './config'
+
 export async function generateWithGemini(prompt: string): Promise<string> {
   try {
-    const response = await fetch('http://localhost:8000/api/generate', {
+    const response = await fetch(`${API_BASE_URL}/api/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

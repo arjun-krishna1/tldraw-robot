@@ -1,7 +1,9 @@
+import { API_BASE_URL } from './config'
+
 export async function textToSpeech(text: string): Promise<ArrayBuffer> {
   try {
     console.log('Making text-to-speech API request to backend')
-    const response = await fetch('http://localhost:8000/api/speak', {
+    const response = await fetch(`${API_BASE_URL}/api/speak`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
