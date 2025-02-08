@@ -2,16 +2,29 @@ import { API_BASE_URL } from './config'
 
 export async function sendMovementCommand(direction: string, value: number) {
   try {
-    // If direction is "stop", use the stop endpoint
-    const endpoint = direction === "stop" ? `${API_BASE_URL}/api/stop` : `${API_BASE_URL}/api/move`;
-    const body = direction === "stop" ? {} : { direction, value };
+    // Always use stop endpoint for stop commands
+    if (direction.toLowerCase().trim() === 'stop') {
+      const response = await fetch(`${API_BASE_URL}/api/stop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    const response = await fetch(endpoint, {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    }
+
+    // For all other movement commands
+    const response = await fetch(`${API_BASE_URL}/api/move`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ direction, value }),
     });
 
     if (!response.ok) {

@@ -94,20 +94,20 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
 
       console.log('Executing movement command:', lastCommand)
 
-      // Update loading state
+      // Update loading state with special handling for stop
       this.editor?.updateShape<MovementNodeShape>({
         id: shape.id,
         type: 'movement',
         props: {
           ...shape.props,
           direction: lastCommand.direction,
-          value: lastCommand.value,
+          value: lastCommand.direction === 'stop' ? 0 : lastCommand.value,
           isLoading: true,
         },
       })
 
       try {
-        const response = await sendMovementCommand(lastCommand.direction, lastCommand.value)
+        const response = await sendMovementCommand(lastCommand.direction, lastCommand.direction === 'stop' ? 0 : lastCommand.value)
         console.log('Movement response:', response)
 
         // Update node state
