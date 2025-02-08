@@ -44,13 +44,19 @@ class SpeechRequest(BaseModel):
 async def generate_response(request: PromptRequest):
     try:
         # Initialize the model
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Generate content
-        response = model.generate_content(request.prompt)
-        
-        return {"response": response.text}
+        response = model.generate_content(request.prompt + "\n Be Concise")
+        print("ARJUN LOG RESPONSE")
+        print(response.candidates[0].content.parts[0].text)
+
+        return {"response": response.candidates[0].content.parts[0].text}
     except Exception as e:
+        print(f"Error in generate_response:")
+        print(f"  Type: {type(e).__name__}")
+        print(f"  Message: {str(e)}")
+        print(f"  Prompt: {request.prompt}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/speak")

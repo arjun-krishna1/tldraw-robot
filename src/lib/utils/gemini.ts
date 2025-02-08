@@ -13,6 +13,7 @@ export async function generateWithGemini(prompt: string): Promise<string> {
     }
 
     const data = await response.json()
+    console.log('ARJUN LOG RESPONSE', data)
     return data.response
   } catch (error) {
     console.error('Error generating with backend:', error)

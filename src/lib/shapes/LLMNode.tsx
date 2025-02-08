@@ -43,6 +43,67 @@ function getTextPointingToShape(editor: Editor, targetShapeId: TLShapeId) {
   }).filter(text => text !== null && text !== undefined)
 }
 
+function updateConnectedTextShapes(editor: Editor, sourceId: TLShapeId, newText: string) {
+  console.log('\n=== Updating Connected Text Shapes ===')
+  console.log('Source Shape ID:', sourceId)
+  console.log('New Text to Set:', newText)
+  
+  // Get all bindings where this shape is the source
+  const bindings = editor.getBindingsToShape(sourceId, 'arrow')
+  // const bindings = editor.getBindingsFromShape(sourceId, 'arrow')
+  console.log('Found outgoing bindings:', bindings)
+  
+  bindings.forEach((binding, index) => {
+    console.log(`\nProcessing binding ${index + 1}:`, binding)
+    
+    // Get the arrow shape
+    const arrowShape = editor.getShape(binding.fromId)
+    console.log('Arrow shape:', arrowShape)
+    if (!arrowShape || arrowShape.type !== 'arrow') {
+      console.log('Invalid arrow shape - skipping')
+      return
+    }
+
+    // Get the arrow's bindings to find its end point
+    const arrowBindings = editor.getBindingsFromShape(arrowShape.id, 'arrow')
+    console.log('Arrow bindings:', arrowBindings)
+    
+    // Find the binding that represents the end of the arrow
+    const endBinding = arrowBindings.find(b => (b.props as any).terminal === 'end')
+    console.log('End binding:', endBinding)
+    if (!endBinding) {
+      console.log('No end binding found - skipping')
+      return
+    }
+
+    // Get the shape at the end of the arrow
+    const endShape = editor.getShape(endBinding.toId)
+    console.log('End shape:', endShape)
+    if (!endShape) {
+      console.log('No end shape found - skipping')
+      return
+    }
+
+    // If it's a text shape, update its text
+    if (endShape.type === 'text') {
+      console.log('Found text shape, updating with new text')
+      editor.updateShape<TLTextShape>({
+        id: endShape.id,
+        type: 'text',
+        props: {
+          ...endShape.props,
+          text: newText,
+        },
+      })
+      console.log('Text shape updated successfully')
+    } else {
+      console.log('End shape is not a text shape - type:', endShape.type)
+    }
+  })
+  
+  console.log('=== Finished Processing Connected Shapes ===\n')
+}
+
 export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
   static type = 'llm'
   static props = {
@@ -139,22 +200,10 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
         const response = await generateWithGemini(completePrompt)
         console.log('Gemini response:', response)
         
-        // Create or update result text shape
-        const resultId = createShapeId()
-        console.log('Creating result text shape...')
-        this.editor?.createShape({
-          id: resultId,
-          type: 'text',
-          x: shape.x,
-          y: shape.y + shape.props.h + 50,
-          props: {
-            text: response,
-            color: 'black',
-            size: 'm',
-            font: 'draw',
-            scale: 1,
-          },
-        })
+        // Update any connected text shapes with the response
+        if (this.editor) {
+          updateConnectedTextShapes(this.editor, shape.id, response)
+        }
 
         // Update Think node state
         console.log('Updating Think node state...')
