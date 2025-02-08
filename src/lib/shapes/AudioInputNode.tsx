@@ -7,7 +7,7 @@ export class AudioInputNodeUtil extends BaseBoxShapeUtil<AudioInputNodeShape> {
 
   getDefaultProps(): AudioInputNodeShape['props'] {
     return {
-      title: 'Audio Input',
+      title: 'Listen',
       w: 200,
       h: 100,
       command: '',

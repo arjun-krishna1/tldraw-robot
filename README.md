@@ -10,10 +10,10 @@ A visual node-based interface for programming BracketBot using connected compone
 **What is the MVP?**
 - Visual canvas with draggable nodes for basic robot functions
 - Core node types:
-  - Movement nodes (forward, backward, turn)
-  - Speech nodes (text-to-speech output)
+  - Move nodes (forward, backward, turn)
+  - Talk nodes (text-to-speech output)
   - Audio input nodes (voice commands)
-  - LLM instruction nodes (process natural language commands)
+  - Think instruction nodes (process natural language commands)
 - Ability to connect nodes with arrows
 - Real-time execution of the workflow
 - Basic robot status feedback
@@ -35,10 +35,10 @@ The project will be complete when users can create, save, and execute basic robo
 
 | Node Type | Function | Priority |
 |-----------|----------|-----------|
-| Movement | Controls robot motion | MVP |
-| Speech | Manages audio output | MVP |
-| LLM | Processes instructions | MVP |
-| Audio Input | Captures voice commands | MVP |
+| Move | Controls robot motion | MVP |
+| Talk | Manages audio output | MVP |
+| Think | Processes instructions | MVP |
+| Listen | Captures voice commands | MVP |
 | Status | Monitors robot state | MVP |
 | Custom | User-defined behaviors | Sprinkle |
 

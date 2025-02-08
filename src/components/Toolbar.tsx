@@ -17,36 +17,36 @@ export function Toolbar({ editor }: ToolbarProps) {
   }, [editor])
 
   return (
-    <div className="absolute top-4 left-4 flex flex-col gap-2 bg-white p-2 rounded-lg shadow-lg">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-row gap-2 bg-white p-2 rounded-lg shadow-lg">
       <button
         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         onClick={() => addNode('movement')}
       >
-        Add Movement
+        Move
       </button>
       <button
         className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
         onClick={() => addNode('speech')}
       >
-        Add Speech
+        Talk
       </button>
       <button
         className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
         onClick={() => addNode('audio_input')}
       >
-        Add Audio Input
+        Listen
       </button>
       <button
         className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
         onClick={() => addNode('llm')}
       >
-        Add LLM
+        Think
       </button>
       <button
         className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
         onClick={() => addNode('status')}
       >
-        Add Status
+        Status
       </button>
     </div>
   )

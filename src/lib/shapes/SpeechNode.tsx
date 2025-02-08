@@ -7,7 +7,7 @@ export class SpeechNodeUtil extends BaseBoxShapeUtil<SpeechNodeShape> {
 
   getDefaultProps(): SpeechNodeShape['props'] {
     return {
-      title: 'Speech',
+      title: 'Talk',
       w: 200,
       h: 100,
       text: '',

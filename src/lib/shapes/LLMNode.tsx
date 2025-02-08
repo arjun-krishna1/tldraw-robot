@@ -7,7 +7,7 @@ export class LLMNodeUtil extends BaseBoxShapeUtil<LLMNodeShape> {
 
   getDefaultProps(): LLMNodeShape['props'] {
     return {
-      title: 'LLM',
+      title: 'Think',
       w: 200,
       h: 100,
       instruction: '',

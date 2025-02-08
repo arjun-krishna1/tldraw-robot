@@ -7,7 +7,7 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
 
   getDefaultProps(): MovementNodeShape['props'] {
     return {
-      title: 'Movement',
+      title: 'Move',
       w: 200,
       h: 100,
       direction: 'forward',
