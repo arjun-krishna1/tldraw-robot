@@ -19,6 +19,12 @@ export function Toolbar({ editor }: ToolbarProps) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-row gap-2 bg-white p-2 rounded-lg shadow-lg">
       <button
+        className="px-4 py-2 bg-sky-500 text-white rounded hover:bg-sky-600"
+        onClick={() => addNode('text_input')}
+      >
+        Text
+      </button>
+      <button
         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         onClick={() => addNode('movement')}
       >

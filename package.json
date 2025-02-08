@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@tldraw/editor": "^3.7.2",
     "@tldraw/tldraw": "^3.7.2",
     "next": "15.1.6",

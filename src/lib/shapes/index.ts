@@ -7,6 +7,14 @@ export interface NodeShape extends TLBaseShape<string, {
   h: number
 }> {}
 
+// Text node
+export interface TextNodeShape extends TLBaseShape<'text_input', {
+  title: string
+  w: number
+  h: number
+  text: string
+}> {}
+
 // Move node
 export interface MovementNodeShape extends TLBaseShape<'movement', {
   title: string
@@ -24,7 +32,7 @@ export interface SpeechNodeShape extends TLBaseShape<'speech', {
   text: string
 }> {}
 
-// Audio input node
+// Listen node
 export interface AudioInputNodeShape extends TLBaseShape<'audio_input', {
   title: string
   w: number
@@ -38,6 +46,8 @@ export interface LLMNodeShape extends TLBaseShape<'llm', {
   w: number
   h: number
   instruction: string
+  response: string
+  isLoading: boolean
 }> {}
 
 // Status node
