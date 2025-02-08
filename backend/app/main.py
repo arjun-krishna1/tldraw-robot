@@ -47,7 +47,7 @@ async def generate_response(request: PromptRequest):
         model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Generate content
-        response = model.generate_content(request.prompt + "\n Be Concise")
+        response = model.generate_content(request.prompt + "\n Be Concise, keep all responses to 1 or two sentences")
         print("ARJUN LOG RESPONSE")
         print(response.candidates[0].content.parts[0].text)
 
