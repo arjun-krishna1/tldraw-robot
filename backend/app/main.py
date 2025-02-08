@@ -40,6 +40,10 @@ class PromptRequest(BaseModel):
 class SpeechRequest(BaseModel):
     text: str
 
+class MovementRequest(BaseModel):
+    direction: str
+    value: float
+
 @app.post("/api/generate")
 async def generate_response(request: PromptRequest):
     try:
@@ -81,6 +85,15 @@ async def text_to_speech(request: SpeechRequest):
         return {"audio": audio_base64}
     except Exception as e:
         print(f"Error in text_to_speech: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/move")
+async def handle_movement(request: MovementRequest):
+    try:
+        print(f"Movement command received - Direction: {request.direction}, Value: {request.value}")
+        return {"status": "success", "message": f"Moving {request.direction} by {request.value}"}
+    except Exception as e:
+        print(f"Error in handle_movement: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

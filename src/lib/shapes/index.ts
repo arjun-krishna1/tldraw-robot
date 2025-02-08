@@ -17,11 +17,12 @@ export interface TextNodeShape extends TLBaseShape<'text_input', {
 
 // Move node
 export interface MovementNodeShape extends TLBaseShape<'movement', {
-  title: string
   w: number
   h: number
-  direction: 'forward' | 'backward' | 'turn'
-  value: number // distance in cm or angle in degrees
+  title: string
+  direction: string
+  value: number
+  isLoading: boolean
 }> {}
 
 // Talk node

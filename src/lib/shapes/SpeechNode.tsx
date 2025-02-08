@@ -148,7 +148,7 @@ export class SpeechNodeUtil extends BaseBoxShapeUtil<SpeechNodeShape> {
           </button>
         </div>
         <div>
-          Text: {shape.props.text || '<Connect text to speak>'}
+          {/* Text: {shape.props.text || '<Connect text to speak>'} */}
         </div>
       </HTMLContainer>
     )
