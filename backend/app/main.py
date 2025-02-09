@@ -192,7 +192,7 @@ async def text_to_speech(request: SpeechRequest):
         # Generate audio using ElevenLabs
         audio = eleven.generate(
             text=request.text,
-            voice="Josh",
+            voice="X5Vm9Ph9ZjPIHXw2QQQc",
             model="eleven_multilingual_v2"
         )
 
