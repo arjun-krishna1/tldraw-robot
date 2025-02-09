@@ -1,14 +1,13 @@
 import sys
 import os
 import sounddevice as sd
-import soundfile as sf
 import numpy as np
 import paho.mqtt.client as mqtt
 import logging
-import whispercpp as w
 import time
 from io import BytesIO
 import wave
+import modal
 
 # Suppress unnecessary logging
 logging.basicConfig(level=logging.INFO)
@@ -18,21 +17,50 @@ logging.basicConfig(level=logging.INFO)
 # ------------------------------------------------------------------------------------
 MQTT_BROKER_ADDRESS = "localhost"
 MQTT_TOPIC = "robot/drive"
-SAMPLE_RATE = 16000  # Whisper expects 16kHz
+SAMPLE_RATE = 16000
 CHANNELS = 1  # Mono audio
-CHUNK_DURATION = 3.0  # Duration in seconds for each audio chunk
-STREAM_CHUNK_DURATION = 1.0  # Duration for stream updates
+STREAM_CHUNK_DURATION = 3.0  # Duration for stream updates
+
+# Modal setup
+image = (
+    modal.Image.debian_slim()
+    .apt_install("ffmpeg")
+    .pip_install("openai-whisper", "ffmpeg-python")
+)
+stub = modal.Stub("voice-command-whisper")
+cache_vol = modal.Volume.from_name("whisper-cache", create_if_missing=True)
+CACHE_DIR = "/cache"
+
+@stub.cls(
+    gpu=modal.gpu.T4(count=1),
+    volumes={CACHE_DIR: cache_vol},
+    allow_concurrent_inputs=15,
+    container_idle_timeout=60 * 10,
+    timeout=60 * 60,
+)
+class WhisperModel:
+    @modal.enter()
+    def setup(self):
+        import whisper
+        self.model = whisper.load_model("tiny.en", device="cuda", download_root=CACHE_DIR)
+
+    @modal.method()
+    def transcribe(self, audio_data: bytes):
+        with open("temp_audio.wav", "wb") as f:
+            f.write(audio_data)
+        result = self.model.transcribe("temp_audio.wav")
+        return result["text"]
 
 # Create MQTT client
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 client.connect(MQTT_BROKER_ADDRESS)
 client.loop_start()
 
-# Whisper setup
-model = w.Whisper('tiny.en')
-
 def process_command(text):
     """Process transcribed text and send appropriate MQTT commands"""
+    if not text:
+        return
+        
     text = text.lower().strip()
     command = None
     
@@ -59,7 +87,7 @@ def process_command(text):
             print("Stopping")
 
 def save_audio_chunk(audio_data, sample_rate):
-    """Save audio data to a temporary WAV file"""
+    """Save audio data to a WAV format bytes object"""
     with BytesIO() as wav_buffer:
         with wave.open(wav_buffer, 'wb') as wav_file:
             wav_file.setnchannels(CHANNELS)
@@ -67,6 +95,16 @@ def save_audio_chunk(audio_data, sample_rate):
             wav_file.setframerate(sample_rate)
             wav_file.writeframes((audio_data * 32767).astype(np.int16).tobytes())
         return wav_buffer.getvalue()
+
+def transcribe_audio(audio_data):
+    """Send audio data to Modal for transcription"""
+    try:
+        whisper_model = WhisperModel()
+        result = whisper_model.transcribe.remote(audio_data)
+        return result
+    except Exception as e:
+        print(f"Transcription error: {e}")
+        return None
 
 def transcribe():
     """Continuously transcribe audio and process commands"""
@@ -84,16 +122,12 @@ def transcribe():
             audio_data = indata.flatten()
             wav_data = save_audio_chunk(audio_data, SAMPLE_RATE)
             
-            # Transcribe using whisper.cpp
-            try:
-                result = model.transcribe_from_wav(wav_data)
-                if result:
-                    text = result.strip()
-                    print(text, end="\r")
-                    sys.stdout.flush()
-                    process_command(text)
-            except Exception as e:
-                print(f"Transcription error: {e}")
+            # Send to Modal for transcription
+            result = transcribe_audio(wav_data)
+            if result:
+                print(result, end="\r")
+                sys.stdout.flush()
+                process_command(result)
 
         # Start audio stream
         with sd.InputStream(
@@ -119,7 +153,8 @@ def transcribe():
 
 if __name__ == "__main__":
     try:
-        transcribe()
+        with stub.run():
+            transcribe()
     except Exception as e:
         print(f"Error: {e}")
         # Ensure cleanup happens

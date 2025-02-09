@@ -9,5 +9,6 @@ paho-mqtt==1.6.1
 sounddevice==0.4.6
 soundfile==0.12.1
 scipy==1.12.0
-numpy==1.26.4
-whispercpp==0.2.0
+numpy==1.24.3
+requests==2.31.0
+modal==0.55.4
