@@ -185,8 +185,10 @@ async def text_to_speech(request: SpeechRequest):
             special_filepath = os.path.join(AUDIO_DIR, special_filename)
             
             if os.path.exists(special_filepath):
-                # Play existing special audio file
-                subprocess.run(["aplay", special_filepath], check=True)
+                # Play existing special audio file using ffplay
+                subprocess.run(["ffplay", "-nodisp", "-autoexit", special_filepath], 
+                             stdout=subprocess.DEVNULL, 
+                             stderr=subprocess.DEVNULL)
                 return {"status": "success"}
         
         # Generate audio using ElevenLabs
@@ -201,8 +203,10 @@ async def text_to_speech(request: SpeechRequest):
         with open(filepath, "wb") as f:
             f.write(audio_data)
 
-        # Play the audio using aplay
-        subprocess.run(["aplay", filepath], check=True)
+        # Play the audio using ffplay
+        subprocess.run(["ffplay", "-nodisp", "-autoexit", filepath],
+                      stdout=subprocess.DEVNULL, 
+                      stderr=subprocess.DEVNULL)
 
         # Save to special filename if it's a special phrase
         if text_normalized in ["wow", "uhhhhhhhhh lemme think about that"]:
