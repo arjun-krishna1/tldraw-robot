@@ -13,6 +13,7 @@ import sounddevice as sd
 import soundfile as sf
 from io import BytesIO
 from scipy import signal
+import numpy as np
 
 # Load environment variables
 load_dotenv()
@@ -64,6 +65,32 @@ ANGULAR_SPEED = 1.2  # rad/s
 
 MQTT_TOPIC = "robot/drive"
 
+def list_audio_devices():
+    """List all available audio devices"""
+    print("\nAvailable Audio Devices:")
+    print("-" * 50)
+    devices = sd.query_devices()
+    for i, device in enumerate(devices):
+        print(f"Device {i}: {device['name']}")
+        print(f"  Inputs: {device['max_input_channels']}")
+        print(f"  Outputs: {device['max_output_channels']}")
+        print(f"  Default Sample Rate: {device['default_samplerate']}")
+        print("-" * 50)
+
+def get_audio_device():
+    """Find the USB audio device"""
+    devices = sd.query_devices()
+    device_id = None
+    for i, device in enumerate(devices):
+        if "Jieli" in device['name'] or "UACDemoV1.0" in device['name']:
+            device_id = i
+            break
+    
+    if device_id is None:
+        raise ValueError("Could not find USB audio device")
+    
+    return device_id
+
 @app.post("/api/generate")
 async def generate_response(request: PromptRequest):
     try:
@@ -92,18 +119,19 @@ async def text_to_speech(request: SpeechRequest):
             filename = "wow.wav" if text_normalized == "wow" else "uhh.wav"
             try:
                 data, sample_rate = sf.read(filename, dtype='float32')
-                device_name = "UACDemoV1.0"
-                device_info = sd.query_devices(device_name, 'output')
-                device_id = device_info['index']
-                device_sample_rate = device_info['default_samplerate']
+                device_id = get_audio_device()
+                device_info = sd.query_devices(device_id)
+                device_sample_rate = int(device_info['default_samplerate'])
 
                 # Resample if needed
                 if sample_rate != device_sample_rate:
                     number_of_samples = int(round(len(data) * float(device_sample_rate) / sample_rate))
                     data = signal.resample(data, number_of_samples)
-                    sample_rate = device_sample_rate
-
-                sd.play(data, samplerate=sample_rate, device=device_id)
+                
+                # Ensure audio is in the correct range (-1 to 1)
+                data = np.clip(data, -1.0, 1.0)
+                
+                sd.play(data, samplerate=device_sample_rate, device=device_id)
                 sd.wait()
                 return {"status": "success"}
             except Exception as e:
@@ -113,15 +141,14 @@ async def text_to_speech(request: SpeechRequest):
         # Generate audio using ElevenLabs
         audio = eleven.generate(
             text=request.text,
-            voice="Josh",  # Using Josh voice
+            voice="Josh",
             model="eleven_multilingual_v2"
         )
 
-        # Set audio device
-        device_name = "UACDemoV1.0"
-        device_info = sd.query_devices(device_name, 'output')
-        device_id = device_info['index']
-        device_sample_rate = device_info['default_samplerate']
+        # Get audio device
+        device_id = get_audio_device()
+        device_info = sd.query_devices(device_id)
+        device_sample_rate = int(device_info['default_samplerate'])
 
         # Prepare audio data
         audio_data = b''.join(audio)
@@ -131,16 +158,18 @@ async def text_to_speech(request: SpeechRequest):
         if sample_rate != device_sample_rate:
             number_of_samples = int(round(len(data) * float(device_sample_rate) / sample_rate))
             data = signal.resample(data, number_of_samples)
-            sample_rate = device_sample_rate
+        
+        # Ensure audio is in the correct range (-1 to 1)
+        data = np.clip(data, -1.0, 1.0)
 
         # Play the audio
-        sd.play(data, samplerate=sample_rate, device=device_id)
+        sd.play(data, samplerate=device_sample_rate, device=device_id)
         sd.wait()
 
         # Save to wav if text was "wow" or "uhh"
         if text_normalized in ["wow", "uhhhhhhhhh lemme think about that"]:
             filename = "wow.wav" if text_normalized == "wow" else "uhh.wav"
-            sf.write(filename, data, int(sample_rate))
+            sf.write(filename, data, int(device_sample_rate))
 
         return {"status": "success"}
     except Exception as e:
