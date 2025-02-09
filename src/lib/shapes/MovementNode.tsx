@@ -74,6 +74,7 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
     const isEditing = this.editor.getEditingShapeId() === shape.id
 
     const handleMove = React.useCallback(async (e: React.MouseEvent) => {
+      console.log("handle move has been pressed")
       e.stopPropagation()
       if (shape.props.isLoading) return
 
@@ -106,7 +107,9 @@ export class MovementNodeUtil extends BaseBoxShapeUtil<MovementNodeShape> {
         },
       })
 
+      console.log("before try block")
       try {
+        console.log("sending move command")
         const response = await sendMovementCommand(lastCommand.direction, lastCommand.direction === 'stop' ? 0 : lastCommand.value)
         console.log('Movement response:', response)
 

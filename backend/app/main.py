@@ -90,7 +90,7 @@ class SpeechRequest(BaseModel):
 
 class MovementRequest(BaseModel):
     direction: str
-    value: float
+    value: Optional[float]
 
 class Design(BaseModel):
     id: Optional[str] = None

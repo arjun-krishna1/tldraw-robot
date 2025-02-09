@@ -2,6 +2,7 @@ import { API_BASE_URL } from './config'
 
 export async function sendMovementCommand(direction: string, value: number) {
   try {
+    console.log("ARJUN TEST LOG", direction, value)
     // Always use stop endpoint for stop commands
     if (direction.toLowerCase().trim() === 'stop') {
       const response = await fetch(`${API_BASE_URL}/api/stop`, {
@@ -10,6 +11,7 @@ export async function sendMovementCommand(direction: string, value: number) {
           'Content-Type': 'application/json',
         },
       });
+      console.log(response)
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

@@ -42,13 +42,13 @@ function getShapesPointedToByShape(editor: Editor, sourceId: TLShapeId): TLShape
 async function triggerNode(editor: Editor, shapeId: TLShapeId, visited = new Set<string>()): Promise<void> {
   console.log('\n=== Triggering node:', shapeId, '===')
   
-  // Prevent cycles
-  if (visited.has(shapeId)) {
-    console.log('Node already visited, skipping to prevent cycles')
-    return
-  }
-  visited.add(shapeId)
-  console.log('Current visited nodes:', Array.from(visited))
+  // // Prevent cycles
+  // if (visited.has(shapeId)) {
+  //   console.log('Node already visited, skipping to prevent cycles')
+  //   return
+  // }
+  // visited.add(shapeId)
+  // console.log('Current visited nodes:', Array.from(visited))
 
   // Get the shape
   const shape = editor.getShape(shapeId)
