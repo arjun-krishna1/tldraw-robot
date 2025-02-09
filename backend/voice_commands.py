@@ -1,19 +1,27 @@
 import sys
 import os
-from transformers import pipeline
-from transformers.pipelines.audio_utils import ffmpeg_microphone_live
+import sounddevice as sd
+import soundfile as sf
+import numpy as np
 import paho.mqtt.client as mqtt
 import logging
+import whispercpp as w
+import time
+from io import BytesIO
+import wave
 
 # Suppress unnecessary logging
-logging.getLogger("transformers").setLevel(logging.ERROR)
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+logging.basicConfig(level=logging.INFO)
 
 # ------------------------------------------------------------------------------------
 # Constants & Setup
 # ------------------------------------------------------------------------------------
 MQTT_BROKER_ADDRESS = "localhost"
 MQTT_TOPIC = "robot/drive"
+SAMPLE_RATE = 16000  # Whisper expects 16kHz
+CHANNELS = 1  # Mono audio
+CHUNK_DURATION = 3.0  # Duration in seconds for each audio chunk
+STREAM_CHUNK_DURATION = 1.0  # Duration for stream updates
 
 # Create MQTT client
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -21,13 +29,7 @@ client.connect(MQTT_BROKER_ADDRESS)
 client.loop_start()
 
 # Whisper setup
-device = 'cpu'
-model = "openai/whisper-tiny.en"
-transcriber = pipeline(
-    "automatic-speech-recognition", 
-    model=model, 
-    device=device
-)
+model = w.Whisper('tiny.en')
 
 def process_command(text):
     """Process transcribed text and send appropriate MQTT commands"""
@@ -52,65 +54,63 @@ def process_command(text):
         
         # Automatically stop after movement commands (except 'stop' command)
         if command != "stop":
-            import time
             time.sleep(1.0)  # Move for 1 second
             client.publish(MQTT_TOPIC, "stop")
             print("Stopping")
 
-def transcribe(chunk_length_s=3.0, stream_chunk_s=1.0):
+def save_audio_chunk(audio_data, sample_rate):
+    """Save audio data to a temporary WAV file"""
+    with BytesIO() as wav_buffer:
+        with wave.open(wav_buffer, 'wb') as wav_file:
+            wav_file.setnchannels(CHANNELS)
+            wav_file.setsampwidth(2)  # 16-bit audio
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes((audio_data * 32767).astype(np.int16).tobytes())
+        return wav_buffer.getvalue()
+
+def transcribe():
     """Continuously transcribe audio and process commands"""
-    sampling_rate = transcriber.feature_extractor.sampling_rate
-
-    # Redirect stdout/stderr temporarily
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-    sys.stdout = open(os.devnull, 'w')
-    sys.stderr = open(os.devnull, 'w')
-    
     try:
-        mic = ffmpeg_microphone_live(
-            sampling_rate=sampling_rate,
-            chunk_length_s=chunk_length_s,
-            stream_chunk_s=stream_chunk_s,
-        )
-    finally:
-        # Restore stdout/stderr
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
-
-    print("\nVoice Control Active!")
-    print("Commands: forward, back, left, right, stop")
-    print("Press Ctrl+C to exit\n")
-    
-    try:
-        while True:
-            # Redirect stdout/stderr for transcription
-            sys.stdout = open(os.devnull, 'w')
-            sys.stderr = open(os.devnull, 'w')
+        print("\nVoice Control Active!")
+        print("Commands: forward, back, left, right, stop")
+        print("Press Ctrl+C to exit\n")
+        
+        def audio_callback(indata, frames, time, status):
+            if status:
+                print(f"Status: {status}")
+                return
             
-            for item in transcriber(mic, generate_kwargs={"max_new_tokens": 128}):
-                # Restore stdout/stderr for our output
-                sys.stdout = old_stdout
-                sys.stderr = old_stderr
-                
-                sys.stdout.write("\033[K")
-                text = item["text"]
-                print(text, end="\r")
-                
-                # Process command when chunk is complete
-                if not item["partial"][0]:
-                    print()  # Move to next line
+            # Save audio chunk to WAV format
+            audio_data = indata.flatten()
+            wav_data = save_audio_chunk(audio_data, SAMPLE_RATE)
+            
+            # Transcribe using whisper.cpp
+            try:
+                result = model.transcribe_from_wav(wav_data)
+                if result:
+                    text = result.strip()
+                    print(text, end="\r")
+                    sys.stdout.flush()
                     process_command(text)
-                    break
-                    
+            except Exception as e:
+                print(f"Transcription error: {e}")
+
+        # Start audio stream
+        with sd.InputStream(
+            samplerate=SAMPLE_RATE,
+            channels=CHANNELS,
+            blocksize=int(SAMPLE_RATE * STREAM_CHUNK_DURATION),
+            callback=audio_callback
+        ):
+            print("Listening... Press Ctrl+C to stop")
+            while True:
+                time.sleep(0.1)
+                
     except KeyboardInterrupt:
         print("\nStopping voice control...")
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        # Restore stdout/stderr
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
         # Clean up
         client.publish(MQTT_TOPIC, "stop")
         client.loop_stop()
