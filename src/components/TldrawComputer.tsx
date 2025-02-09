@@ -2,11 +2,14 @@
 
 import { Tldraw, useEditor } from '@tldraw/tldraw'
 import '@tldraw/tldraw/tldraw.css'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { customShapeUtils } from '@/lib/shapes/config'
 import { Toolbar } from './Toolbar'
+import { DesignMarketplace } from './DesignMarketplace'
 
 export default function TldrawComputer() {
+  const [showMarketplace, setShowMarketplace] = useState(false)
+
   const handleMount = useCallback(() => {
     // Initialize any computer-specific functionality here
     console.log('Tldraw mounted')
@@ -20,13 +23,30 @@ export default function TldrawComputer() {
         persistenceKey="tldraw-computer"
         className="h-full w-full"
       >
-        <EditorToolbar />
+        <TldrawUI showMarketplace={showMarketplace} setShowMarketplace={setShowMarketplace} />
       </Tldraw>
     </div>
   )
 }
 
-function EditorToolbar() {
+interface TldrawUIProps {
+  showMarketplace: boolean
+  setShowMarketplace: (show: boolean) => void
+}
+
+function TldrawUI({ showMarketplace, setShowMarketplace }: TldrawUIProps) {
   const editor = useEditor()
-  return <Toolbar editor={editor} />
+
+  return (
+    <>
+      <Toolbar editor={editor} onOpenMarketplace={() => setShowMarketplace(true)} />
+      
+      {showMarketplace && (
+        <DesignMarketplace
+          editor={editor}
+          onClose={() => setShowMarketplace(false)}
+        />
+      )}
+    </>
+  )
 } 
