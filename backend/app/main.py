@@ -10,15 +10,11 @@ import base64
 import io
 import paho.mqtt.client as mqtt
 import json
-import sounddevice as sd
-import soundfile as sf
-from io import BytesIO
-from scipy import signal
-import numpy as np
-from typing import List, Optional
+import subprocess
 from datetime import datetime
 import sqlite3
 import uuid
+from typing import List, Optional
 
 # Load environment variables
 load_dotenv()
@@ -119,6 +115,10 @@ ANGULAR_SPEED = 1.2  # rad/s
 
 MQTT_TOPIC = "robot/drive"
 
+# Create audio directory if it doesn't exist
+AUDIO_DIR = os.path.join(os.path.dirname(__file__), "audio")
+os.makedirs(AUDIO_DIR, exist_ok=True)
+
 def list_audio_devices():
     """List all available audio devices"""
     print("\nAvailable Audio Devices:")
@@ -167,30 +167,22 @@ async def generate_response(request: PromptRequest):
 @app.post("/api/speak")
 async def text_to_speech(request: SpeechRequest):
     try:
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        filename = f"speech_{timestamp}_{unique_id}.wav"
+        filepath = os.path.join(AUDIO_DIR, filename)
+
         # Check for special phrases that use pre-recorded audio
         text_normalized = request.text.lower().strip('-.,!?')
         if text_normalized in ["wow", "uhhhhhhhhh lemme think about that"]:
-            filename = "wow.wav" if text_normalized == "wow" else "uhh.wav"
-            try:
-                data, sample_rate = sf.read(filename, dtype='float32')
-                device_id = get_audio_device()
-                device_info = sd.query_devices(device_id)
-                device_sample_rate = int(device_info['default_samplerate'])
-
-                # Resample if needed
-                if sample_rate != device_sample_rate:
-                    number_of_samples = int(round(len(data) * float(device_sample_rate) / sample_rate))
-                    data = signal.resample(data, number_of_samples)
-                
-                # Ensure audio is in the correct range (-1 to 1)
-                data = np.clip(data, -1.0, 1.0)
-                
-                sd.play(data, samplerate=device_sample_rate, device=device_id)
-                sd.wait()
+            special_filename = "wow.wav" if text_normalized == "wow" else "uhh.wav"
+            special_filepath = os.path.join(AUDIO_DIR, special_filename)
+            
+            if os.path.exists(special_filepath):
+                # Play existing special audio file
+                subprocess.run(["aplay", special_filepath], check=True)
                 return {"status": "success"}
-            except Exception as e:
-                print(f"Error playing pre-recorded audio: {e}")
-                # Continue to generate new audio if pre-recorded playback fails
         
         # Generate audio using ElevenLabs
         audio = eleven.generate(
@@ -199,33 +191,22 @@ async def text_to_speech(request: SpeechRequest):
             model="eleven_multilingual_v2"
         )
 
-        # Get audio device
-        device_id = get_audio_device()
-        device_info = sd.query_devices(device_id)
-        device_sample_rate = int(device_info['default_samplerate'])
-
-        # Prepare audio data
+        # Save audio to file
         audio_data = b''.join(audio)
-        data, sample_rate = sf.read(BytesIO(audio_data), dtype='float32')
+        with open(filepath, "wb") as f:
+            f.write(audio_data)
 
-        # Resample if needed
-        if sample_rate != device_sample_rate:
-            number_of_samples = int(round(len(data) * float(device_sample_rate) / sample_rate))
-            data = signal.resample(data, number_of_samples)
-        
-        # Ensure audio is in the correct range (-1 to 1)
-        data = np.clip(data, -1.0, 1.0)
+        # Play the audio using aplay
+        subprocess.run(["aplay", filepath], check=True)
 
-        # Play the audio
-        sd.play(data, samplerate=device_sample_rate, device=device_id)
-        sd.wait()
-
-        # Save to wav if text was "wow" or "uhh"
+        # Save to special filename if it's a special phrase
         if text_normalized in ["wow", "uhhhhhhhhh lemme think about that"]:
-            filename = "wow.wav" if text_normalized == "wow" else "uhh.wav"
-            sf.write(filename, data, int(device_sample_rate))
+            special_filename = "wow.wav" if text_normalized == "wow" else "uhh.wav"
+            special_filepath = os.path.join(AUDIO_DIR, special_filename)
+            with open(special_filepath, "wb") as f:
+                f.write(audio_data)
 
-        return {"status": "success"}
+        return {"status": "success", "filename": filename}
     except Exception as e:
         print(f"Error in text_to_speech: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
