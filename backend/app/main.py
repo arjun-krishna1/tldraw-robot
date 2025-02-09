@@ -186,7 +186,7 @@ async def text_to_speech(request: SpeechRequest):
             
             if os.path.exists(special_filepath):
                 # Play existing special audio file using ffplay
-                subprocess.run(["ffplay", "-nodisp", "-autoexit", special_filepath], 
+                subprocess.run(["ffplay", "-nodisp", "-autoexit", "-volume", "256", special_filepath], 
                              stdout=subprocess.DEVNULL, 
                              stderr=subprocess.DEVNULL)
                 return {"status": "success"}
