@@ -2,9 +2,6 @@
 
 A tldraw computer style interface for BracketBot programming.
 
-[image](https://github.com/user-attachments/assets/d1221731-34e5-46aa-abfa-57f29ff3245a)
-
-
 ## Instructions
 - Connect to your bracketbots network
 - SSH to bracketbot raspberry pi
